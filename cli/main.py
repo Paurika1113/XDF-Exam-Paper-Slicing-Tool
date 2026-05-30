@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from scanner import scan_with_fallback
-from slice_all import extract_type_content, generate_docx, restruct_zones
+from slice_all import extract_type_content, generate_docx, find_zones
 
 # ── 日志 ──
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -170,7 +170,7 @@ async def slice_files(
                 exam = get_exam_type(fname)
 
                 # 纯规则分类 zones
-                zones = restruct_zones(content, typ)
+                zones = find_zones(content, typ)
 
                 all_jobs.append({
                     "fname": fname,
@@ -192,7 +192,7 @@ async def slice_files(
                 continue
             zones = job.get("zones", [])
             if not zones:
-                zones = restruct_zones(job["content"], typ)
+                zones = find_zones(job["content"], typ)
             type_collections[typ].append((
                 job["school"], job["exam"], job["content"], zones
             ))
