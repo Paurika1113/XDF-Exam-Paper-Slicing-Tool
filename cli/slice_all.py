@@ -526,10 +526,11 @@ def generate_docx(type_name, items, output_path, grade_label="2025-2026高二上
     ANSWER_COLOR = _resolve(format_scheme["answer"], "color")
     ANSWER_BOLD = format_scheme["answer"].get("bold", False)
 
-    EXPLAIN_FONT = format_scheme["explanation"].get("font", "宋体")
-    EXPLAIN_SIZE = _resolve(format_scheme["explanation"], "size")
-    EXPLAIN_COLOR = _resolve(format_scheme["explanation"], "color")
-    EXPLAIN_BOLD = format_scheme["explanation"].get("bold", False)
+    EXPLAIN = format_scheme.get("explanation", {"font": "宋体", "size": "五号", "color": "红色", "bold": False})
+    EXPLAIN_FONT = EXPLAIN.get("font", "宋体")
+    EXPLAIN_SIZE = _resolve(EXPLAIN, "size")
+    EXPLAIN_COLOR = _resolve(EXPLAIN, "color")
+    EXPLAIN_BOLD = EXPLAIN.get("bold", False)
 
     xdf_mode = format_scheme.get("xdf_mode", False)
 
