@@ -15,16 +15,6 @@ import uuid
 import zipfile
 from pathlib import PurePath
 
-# Block lxml to force python-docx to use xml.etree
-# lxml C extension can segfault on some serverless platforms
-import builtins as _b
-_orig_import = _b.__import__
-def _no_lxml(name, *args, **kwargs):
-    if name == 'lxml' or name.startswith('lxml.'):
-        raise ImportError('lxml disabled for serverless compatibility')
-    return _orig_import(name, *args, **kwargs)
-_b.__import__ = _no_lxml
-
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
