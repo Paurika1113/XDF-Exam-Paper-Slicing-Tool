@@ -102,6 +102,24 @@ async def custom_http_handler(request: Request, exc: HTTPException):
 
 # ── 接口 ──
 
+@app.get("/api/ping")
+async def ping():
+    """诊断用"""
+    return {"status": "ok", "message": "ping"}
+
+
+@app.post("/api/echo")
+async def echo_file(request: Request):
+    """诊断用：测试 POST + 文件上传"""
+    body = await request.body()
+    return {
+        "method": "POST",
+        "content_type": request.headers.get("content-type", ""),
+        "body_size": len(body),
+        "status": "ok"
+    }
+
+
 @app.post("/api/slice")
 async def slice_files(
     files: list[UploadFile] = File(...),
