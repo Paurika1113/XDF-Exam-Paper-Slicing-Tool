@@ -73,6 +73,17 @@ async def add_request_id(request: Request, call_next):
 
 # ── 接口 ──
 
+@app.post("/api/echo")
+async def echo_file(file: UploadFile = File(...)):
+    """诊断用：上传一个文件，返回文件名和大小"""
+    content = await file.read()
+    return {
+        "filename": file.filename,
+        "size": len(content),
+        "status": "ok"
+    }
+
+
 @app.post("/api/slice")
 async def slice_files(
     files: list[UploadFile] = File(...),
