@@ -1,0 +1,7 @@
+# Vercel 部署忽略
+gui
+npm_cache
+.git
+.gitignore
+.gitmodules
+pyproject.toml

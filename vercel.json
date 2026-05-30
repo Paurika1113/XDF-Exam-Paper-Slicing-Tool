@@ -1,0 +1,7 @@
+{
+  "buildCommand": "echo 'static'",
+  "outputDirectory": "frontend",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.py" }
+  ]
+}
