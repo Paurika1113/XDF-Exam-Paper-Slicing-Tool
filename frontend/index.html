@@ -526,8 +526,14 @@ async function startSlice() {
         }
       };
       xhr.onload = function() {
-        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr);
-        else reject(new Error('HTTP ' + xhr.status + ': ' + xhr.statusText));
+        if (xhr.status >= 200 && xhr.status < 300) { resolve(xhr); return; }
+        try {
+          var body = JSON.parse(xhr.responseText);
+          var detail = body.detail || body.message || '';
+          reject(new Error('HTTP ' + xhr.status + ': ' + detail));
+        } catch(_) {
+          reject(new Error('HTTP ' + xhr.status + ': ' + xhr.statusText));
+        }
       };
       xhr.onerror = function() { reject(new Error('\u7f51\u7edc\u9519\u8bef')); };
       xhr.onabort = function() { reject(new DOMException('Aborted', 'AbortError')); };
