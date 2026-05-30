@@ -1,8 +1,8 @@
 """
 XDFclier — Vercel Python Serverless Function
 
-使用 Mangum 适配 FastAPI ASGI → Vercel WSGI 运行时。
-Vercel Python runtime 通过 `app` 变量自动识别 WSGI handler。
+直接导出 FastAPI ASGI app，让 Vercel Python runtime 原生处理。
+不再使用 Mangum（可能对文件上传兼容性有问题）。
 """
 import sys
 import os
@@ -13,9 +13,5 @@ _cli_dir = os.path.normpath(_cli_dir)
 if _cli_dir not in sys.path:
     sys.path.insert(0, _cli_dir)
 
-# 导入 FastAPI 应用实例
-from main import app as fastapi_app
-
-# Mangum 适配器：FastAPI ASGI → Vercel WSGI
-from mangum import Mangum
-app = Mangum(fastapi_app)
+# 直接导出 FastAPI app（Vercel Python 3+ 原生支持 ASGI）
+from main import app
