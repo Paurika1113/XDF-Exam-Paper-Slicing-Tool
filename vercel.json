@@ -1,1 +1,0 @@
-{"buildCommand": "echo static", "outputDirectory": "/", "routes": [{"source": "/api/(.*)", "destination": "/api/index.py"}]}
