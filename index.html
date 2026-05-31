@@ -571,8 +571,8 @@ function downloadResult() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  addLog('success', '\u5df2\u5f00\u59cb\u4e0b\u8f7d \u5207\u7247\u7ed3\u679c.zip');
+  setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
+  addLog('success', '\u5df2\u5f00\u59cb\u4e0b\u8f7d');
 }
 
 // ── Init ──
