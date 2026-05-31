@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XDFclier — 试卷切片工具</title>
+<script>
+// EdgeOne 部署：API 指向 Vercel 后端
+window.__API_BASE__ = 'https://paurika.qzz.io';
+window.__IS_VERCEL__ = window.location.hostname.includes('vercel.app');
+function apiUrl(path) {
+  var b = window.__API_BASE__ || '';
+  if (b && !b.endsWith('/')) b += '/';
+  return b + (path.charAt(0) === '/' ? path.substring(1) : path);
+}
+</script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0a;--bg2:#121212;--bg3:#1a1a1a;--border:#2a2a2a;--text:#e0e0e0;--text2:#888;--accent:#3b82f6;--success:#4ade80;--error:#ef4444;--warn:#f59e0b;--font:-apple-system,BlinkMacSystemFont,'SF Pro','Segoe UI',system-ui,sans-serif;--mono:'SF Mono','Cascadia Code','Fira Code','Consolas',monospace}
+body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh;overflow:hidden}
+.app{display:grid;grid-template-columns:300px 1fr 360px;height:100vh;min-width:1100px}
+.panel{padding:16px;overflow-y:auto}
+.left{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:12px}
+.middle{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.right{background:var(--bg);display:flex;flex-direction:column}
+h2{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
+h3{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.section{margin-bottom:8px}
+label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:4px}
+input[type="text"]{width:100%;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none}
+input[type="text"]:focus{border-color:var(--accent)}
+select{width:100%;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none;cursor:pointer}
+select:focus{border-color:var(--accent)}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.checkbox-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.checkbox-grid label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;padding:3px 0}
+.checkbox-grid input[type="checkbox"]{accent-color:var(--accent);cursor:pointer}
+.select-all{font-size:11px;color:var(--text2);cursor:pointer;margin-top:2px;user-select:none}
+.select-all:hover{color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text);transition:background .15s}
+.btn:hover{background:var(--border)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-sm{padding:4px 10px;font-size:12px;font-weight:500}
+.btn-success{background:var(--success);border-color:var(--success);color:#000}
+.btn-success:hover{background:#34d399}
+.drop-zone{color:var(--text2);font-size:12px;padding:24px 16px;text-align:center;border:1px dashed var(--border);border-radius:6px;cursor:pointer;transition:all .2s}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:var(--bg3)}
+.drop-zone .icon{font-size:24px;margin-bottom:6px}
+.drop-zone .hint{font-size:11px;color:#555;margin-top:4px}
+.file-list{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto}
+.file-item{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border-radius:4px;font-size:12px}
+.file-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item .remove{cursor:pointer;color:var(--text2);padding:0 4px;font-size:14px;line-height:1}
+.file-item .remove:hover{color:var(--error)}
+.file-summary{font-size:11px;color:var(--text2);margin-top:4px;display:flex;gap:8px;align-items:center}
+.file-summary .clear{cursor:pointer;color:var(--error)}
+.file-summary .clear:hover{opacity:.7}
+.steps{display:flex;gap:0;margin-bottom:12px;background:var(--bg3);border-radius:6px;padding:8px 0;border:1px solid var(--border);flex-shrink:0}
+.step{flex:1;text-align:center;font-size:11px;color:var(--text2);padding:4px 0;position:relative}
+.step.active{color:var(--accent);font-weight:600}
+.step.done{color:var(--success)}
+.step .num{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:var(--bg);border:1px solid var(--border);font-size:10px;margin-right:4px;text-align:center}
+.step.active .num{background:var(--accent);border-color:var(--accent);color:#fff}
+.step.done .num{background:var(--success);border-color:var(--success);color:#000}
+.step:not(:last-child)::after{content:'';position:absolute;right:-8px;top:50%;width:16px;height:1px;background:var(--border);transform:translateY(-50%)}
+.progress-wrap{flex-shrink:0;margin-bottom:8px}
+.progress-bar{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);transition:width .3s;border-radius:2px}
+.progress-msg{font-size:11px;color:var(--text2);margin-top:4px;min-height:16px}
+.progress-status{font-size:11px;color:var(--text2);margin-bottom:4px}
+.log-wrap{flex:1;display:flex;flex-direction:column;min-height:0}
+.log-header{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block;flex-shrink:0}
+.log-area{flex:1;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:var(--mono);font-size:13px;line-height:1.6;min-height:0}
+.log-entry{white-space:pre-wrap;word-break:break-all;padding:1px 0}
+.log-entry .ts{color:var(--text2);margin-right:4px}
+.log-entry .info{color:#94a3b8}
+.log-entry .success{color:var(--success)}
+.log-entry .error{color:var(--error)}
+.log-entry .warn{color:var(--warn)}
+.result-area{flex-shrink:0;margin-top:8px;border-top:1px solid var(--border);padding-top:8px}
+.result-area .result-header{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+.result-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg3);border-radius:4px;font-size:12px;margin-bottom:4px}
+.result-item .path{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#333}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Col 1: Files & Config -->
+  <div class="panel left">
+    <div class="section">
+      <h2>📁 文件</h2>
+      <div class="drop-zone" id="dropZone">
+        <div class="icon">📄</div>
+        <div>拖拽 .docx 文件到此处</div>
+        <div class="hint">或点击选择文件</div>
+      </div>
+      <input type="file" id="fileInput" accept=".docx" multiple hidden>
+      <div class="file-list" id="fileList"></div>
+      <div class="file-summary" id="fileSummary" style="display:none">
+        <span id="fileCount"></span>
+        <span class="clear" id="clearFilesBtn">清空</span>
+      </div>
+    </div>
+    <div class="section">
+      <h2>⚙️ 配置</h2>
+      <div class="row" style="margin-bottom:8px">
+        <div>
+          <label for="subjectSelect">学科</label>
+          <select id="subjectSelect">
+            <option value="语文">语文</option>
+            <option value="数学">数学</option>
+            <option value="英语">英语</option>
+            <option value="物理">物理</option>
+            <option value="化学">化学</option>
+          </select>
+        </div>
+        <div>
+          <label for="modeSelect">模式</label>
+          <select id="modeSelect">
+            <option value="切片">切片</option>
+          </select>
+        </div>
+      </div>
+      <label for="gradeInput">📅 年级信息</label>
+      <input type="text" id="gradeInput" placeholder="例如: 2025-2026高一上">
+    </div>
+    <div class="section">
+      <h2>🎯 题型</h2>
+      <div class="checkbox-grid" id="typeCheckboxes">
+        <label><input type="checkbox" value="论述类文本" checked> 论述类文本</label>
+        <label><input type="checkbox" value="文学类文本" checked> 文学类文本</label>
+        <label><input type="checkbox" value="文言文阅读" checked> 文言文阅读</label>
+        <label><input type="checkbox" value="古诗词阅读" checked> 古诗词阅读</label>
+        <label style="color:var(--text2);opacity:0.5"><input type="checkbox" value="语言文字运用" disabled> 语言文字运用 <span style="font-size:10px">(开发中)</span></label>
+        <label style="color:var(--text2);opacity:0.5"><input type="checkbox" value="写作" disabled> 写作 <span style="font-size:10px">(开发中)</span></label>
+      </div>
+      <span class="select-all" id="selectAllBtn">全选</span>
+    </div>
+  </div>
+
+  <!-- Col 2: Steps + Actions -->
+  <div class="panel middle">
+    <div class="steps" id="stepIndicator">
+      <div class="step active" data-step="1"><span class="num">1</span>选择文件</div>
+      <div class="step" data-step="2"><span class="num">2</span>配置</div>
+      <div class="step" data-step="3"><span class="num">3</span>切片</div>
+      <div class="step" data-step="4"><span class="num">4</span>完成</div>
+    </div>
+    <div class="progress-wrap" id="progressArea" style="display:none">
+      <div class="progress-status" id="progressStatus">就绪</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-msg" id="progressMsg"></div>
+    </div>
+    <div style="flex:1;min-height:0;overflow-y:auto" id="middleContent">
+      <div id="pendingSchools" style="display:none">
+        <div class="section" style="border:1px solid var(--warn);border-radius:6px;padding:10px;background:var(--bg3)">
+          <h3 style="color:var(--warn)">⚠️ 待确认学校</h3>
+          <div id="pendingSchoolRows" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+        </div>
+      </div>
+      <div id="examMapSection" style="display:none">
+        <div class="section" style="border:1px solid var(--border);border-radius:6px;padding:10px;background:var(--bg3)">
+          <h3>📊 月考映射</h3>
+          <div id="examMapRows" style="margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
+        </div>
+      </div>
+    </div>
+    <div style="flex-shrink:0;padding-top:8px">
+      <button class="btn btn-primary" id="startBtn" disabled style="width:100%;justify-content:center;padding:10px">
+        ▶ 开始切片
+      </button>
+      <button class="btn btn-sm" id="cancelBtn" style="width:100%;display:none;margin-top:8px;justify-content:center;color:var(--error);border-color:var(--error)">
+        ✕ 取消
+      </button>
+    </div>
+  </div>
+
+  <!-- Col 3: Logs + Results -->
+  <div class="panel right">
+    <div class="log-wrap">
+      <label class="log-header">📋 运行日志</label>
+      <div class="log-area" id="logArea">
+        <div class="log-entry"><span class="ts">·</span> <span class="info">选择 .docx 文件后开始操作</span></div>
+      </div>
+    </div>
+    <div class="result-area" id="resultArea" style="display:none">
+      <label class="result-header">📦 输出</label>
+      <div id="resultList"></div>
+      <button class="btn btn-sm btn-success" id="downloadBtn" style="margin-top:6px">⬇ 下载 ZIP</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let selectedFiles = [];
+let isRunning = false;
+let currentAbortController = null;
+let resultBlob = null;
+
+// ── DOM Ref ──
+const dropZone       = document.getElementById('dropZone');
+const fileInput      = document.getElementById('fileInput');
+const fileList       = document.getElementById('fileList');
+const fileSummary    = document.getElementById('fileSummary');
+const fileCount      = document.getElementById('fileCount');
+const clearFilesBtn  = document.getElementById('clearFilesBtn');
+const subjectSelect  = document.getElementById('subjectSelect');
+const modeSelect     = document.getElementById('modeSelect');
+const gradeInput     = document.getElementById('gradeInput');
+const startBtn       = document.getElementById('startBtn');
+const cancelBtn      = document.getElementById('cancelBtn');
+const logArea        = document.getElementById('logArea');
+const resultArea     = document.getElementById('resultArea');
+const resultList     = document.getElementById('resultList');
+const downloadBtn    = document.getElementById('downloadBtn');
+const pendingSchoolRows = document.getElementById('pendingSchoolRows');
+const pendingSchools = document.getElementById('pendingSchools');
+const examMapSection = document.getElementById('examMapSection');
+const examMapRows    = document.getElementById('examMapRows');
+const middleContent  = document.getElementById('middleContent');
+
+// ── Helpers ──
+function escapeHtml(s) {
+  if (typeof s !== 'string') s = String(s);
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function now() { return new Date().toLocaleTimeString(); }
+function addLog(type, msg) {
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = '<span class="ts">[' + now() + ']</span> <span class="' + type + '">' + escapeHtml(msg) + '</span>';
+  logArea.appendChild(div);
+  logArea.scrollTop = logArea.scrollHeight;
+}
+function updateStep(step) {
+  document.querySelectorAll('.step').forEach(function(s) {
+    var n = parseInt(s.dataset.step);
+    s.classList.toggle('active', n === step);
+    s.classList.toggle('done', n < step);
+  });
+}
+function showProgress(status, pct, msg) {
+  document.getElementById('progressArea').style.display = 'block';
+  document.getElementById('progressStatus').textContent = status;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressMsg').textContent = msg || '';
+}
+function hideProgress() {
+  document.getElementById('progressArea').style.display = 'none';
+}
+
+// ── File Handling ──
+dropZone.addEventListener('click', function() { fileInput.click(); });
+dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  addFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', function() { addFiles(fileInput.files); fileInput.value = ''; });
+
+function addFiles(files) {
+  if (isRunning) return;
+  var added = 0;
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    if (!f.name.toLowerCase().endsWith('.docx')) continue;
+    var dup = false;
+    for (var j = 0; j < selectedFiles.length; j++) {
+      if (selectedFiles[j].name === f.name && selectedFiles[j].size === f.size) { dup = true; break; }
+    }
+    if (dup) continue;
+    selectedFiles.push(f);
+    added++;
+  }
+  if (added > 0) { onFilesChanged(); addLog('info', '\u5df2\u6dfb\u52a0 ' + added + ' \u4e2a\u6587\u4ef6'); }
+}
+
+function removeFile(idx) {
+  if (isRunning) return;
+  var name = selectedFiles[idx].name;
+  selectedFiles.splice(idx, 1);
+  onFilesChanged();
+  addLog('info', '\u5df2\u79fb\u9664: ' + name);
+}
+
+function clearFiles() {
+  if (isRunning) return;
+  selectedFiles = [];
+  onFilesChanged();
+  addLog('info', '\u5df2\u6e05\u7a7a\u6587\u4ef6\u5217\u8868');
+}
+
+function onFilesChanged() {
+  if (selectedFiles.length === 0) {
+    fileList.innerHTML = '';
+    fileSummary.style.display = 'none';
+    updateStep(1);
+    startBtn.disabled = true;
+    return;
+  }
+  fileSummary.style.display = 'flex';
+  fileCount.textContent = '\u5171 ' + selectedFiles.length + ' \u4e2a\u6587\u4ef6';
+  fileList.innerHTML = '';
+  for (var i = 0; i < selectedFiles.length; i++) {
+    (function(idx) {
+      var div = document.createElement('div');
+      div.className = 'file-item';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'name';
+      nameSpan.title = selectedFiles[idx].name;
+      nameSpan.textContent = selectedFiles[idx].name;
+      var rm = document.createElement('span');
+      rm.className = 'remove';
+      rm.textContent = '\u2715';
+      rm.addEventListener('click', function() { removeFile(idx); });
+      div.appendChild(nameSpan);
+      div.appendChild(rm);
+      fileList.appendChild(div);
+    })(i);
+  }
+  var firstName = selectedFiles[0].name;
+  autoDetectSubject(firstName);
+  autoDetectGrade(firstName);
+  checkUnknownSchools();
+  renderExamMap();
+  updateStep(2);
+  startBtn.disabled = false;
+  showProgress('\u5c31\u7eea', 0, '\u5df2\u9009\u62e9 ' + selectedFiles.length + ' \u4e2a\u6587\u4ef6');
+}
+
+function autoDetectSubject(filename) {
+  var subjects = ['\u6570\u5b66','\u82f1\u8bed','\u7269\u7406','\u5316\u5b66','\u751f\u7269','\u5386\u53f2','\u653f\u6cbb','\u5730\u7406'];
+  for (var i = 0; i < subjects.length; i++) {
+    if (filename.indexOf(subjects[i]) >= 0) { subjectSelect.value = subjects[i]; return; }
+  }
+  subjectSelect.value = '\u8bed\u6587';
+}
+function autoDetectGrade(filename) {
+  var year = (filename.match(/(\d{4}-\d{4})/) || [''])[0] || '';
+  var grade = (filename.match(/(\u9ad8\u4e00|\u9ad8\u4e8c|\u9ad8\u4e09)/) || [''])[0] || '';
+  var sem = (filename.match(/[\uff08(]?(\u4e0a|\u4e0b)[\uff09)]?/) || [''])[0] || '';
+  if (year || grade || sem) gradeInput.value = year + grade + sem;
+}
+
+function getSelectedTypes() {
+  var checks = document.querySelectorAll('#typeCheckboxes input[type="checkbox"]:not(:disabled)');
+  var result = [];
+  for (var i = 0; i < checks.length; i++) {
+    if (checks[i].checked) result.push(checks[i].value);
+  }
+  return result;
+}
+
+// ── Select All Toggle ──
+document.getElementById('selectAllBtn').addEventListener('click', function() {
+  var btn = this;
+  var enabled = document.querySelectorAll('#typeCheckboxes input[type="checkbox"]:not(:disabled)');
+  var allChecked = true;
+  for (var i = 0; i < enabled.length; i++) { if (!enabled[i].checked) { allChecked = false; break; } }
+  for (var i = 0; i < enabled.length; i++) enabled[i].checked = !allChecked;
+  btn.textContent = allChecked ? '\u5168\u9009' : '\u53d6\u6d88\u5168\u9009';
+});
+
+// ── School Detection ──
+var SCHOOL_KEYWORDS = ['\u53a6\u95e8\u4e00\u4e2d','\u53a6\u95e8\u4e8c\u4e2d','\u53a6\u95e8\u4e09\u4e2d','\u53a6\u95e8\u516d\u4e2d','\u53a6\u95e8\u5916\u56fd\u8bed\u5b66\u6821','\u53a6\u95e8\u5916\u56fd\u8bed','\u53a6\u95e8\u5927\u5b66\u9644\u5c5e\u79d1\u6280\u4e2d\u5b66','\u79d1\u6280\u4e2d\u5b66','\u53a6\u95e8\u5b9e\u9a8c\u4e2d\u5b66','\u53a6\u95e8\u5b9e\u9a8c','\u53a6\u95e8\u5e02\u53cc\u5341\u4e2d\u5b66','\u53cc\u5341\u4e2d\u5b66','\u53cc\u5341','\u7fd4\u5b89\u7b2c\u4e00\u4e2d\u5b66','\u7fd4\u5b89\u4e00\u4e2d','\u6d77\u6ca7\u5b9e\u9a8c\u4e2d\u5b66','\u53a6\u95e8\u6e56\u6ee8\u4e2d\u5b66','\u6e56\u6ee8\u4e2d\u5b66','\u540c\u5b89\u4e00\u4e2d','\u798f\u5dde\u4e00\u4e2d','\u798f\u5dde\u4e09\u4e2d','\u5e08\u5927\u9644\u4e2d'];
+function detectSchool(filename) { for (var i = 0; i < SCHOOL_KEYWORDS.length; i++) { if (filename.indexOf(SCHOOL_KEYWORDS[i]) >= 0) return SCHOOL_KEYWORDS[i]; } return null; }
+function extractRegion(filename) { var m = filename.match(/(\w+\u5e02)/); return m ? m[1] : ''; }
+
+function checkUnknownSchools() {
+  var unknown = [];
+  for (var i = 0; i < selectedFiles.length; i++) { if (!detectSchool(selectedFiles[i].name)) unknown.push(selectedFiles[i].name); }
+  if (unknown.length === 0) { pendingSchools.style.display = 'none'; return; }
+  pendingSchools.style.display = 'block';
+  pendingSchoolRows.innerHTML = '';
+  for (var i = 0; i < unknown.length; i++) {
+    var region = extractRegion(unknown[i]) || '\u672a\u77e5\u5b66\u6821';
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:6px;align-items:center';
+    div.dataset.file = unknown[i];
+    var nameSpan = document.createElement('span');
+    nameSpan.style.cssText = 'font-size:11px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    nameSpan.title = unknown[i];
+    nameSpan.textContent = unknown[i];
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'school-input';
+    input.value = region;
+    input.placeholder = '\u8f93\u5165\u5b66\u6821\u540d';
+    input.style.cssText = 'width:140px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;outline:none';
+    div.appendChild(nameSpan);
+    div.appendChild(input);
+    pendingSchoolRows.appendChild(div);
+  }
+}
+
+function buildSchoolMap() {
+  var map = null;
+  var rows = pendingSchoolRows.querySelectorAll('[data-file]');
+  for (var i = 0; i < rows.length; i++) {
+    var fname = rows[i].dataset.file;
+    var input = rows[i].querySelector('.school-input');
+    if (input && input.value.trim()) {
+      if (!map) map = {};
+      map[fname] = input.value.trim();
+    }
+  }
+  return map;
+}
+
+// ── Exam Map ──
+function detectMonthsFromFiles() {
+  var months = [];
+  var seen = {};
+  for (var i = 0; i < selectedFiles.length; i++) {
+    var m = selectedFiles[i].name.match(/[\uff08(]?(\d{1,2})\s*[\u6708\u4efd]+[\uff09)]?/);
+    if (m) {
+      var v = parseInt(m[1]);
+      if (!seen[v]) { seen[v] = true; months.push(v); }
+    }
+  }
+  months.sort(function(a,b){return a-b;});
+  return months;
+}
+function toChineseNum(n) { var c = ['\u96f6','\u4e00','\u4e8c','\u4e09','\u56db','\u4e94','\u516d','\u4e03','\u516b','\u4e5d','\u5341','\u5341\u4e00','\u5341\u4e8c']; return c[n] || String(n); }
+
+function renderExamMap() {
+  var months = detectMonthsFromFiles();
+  if (months.length === 0) { examMapSection.style.display = 'none'; return; }
+  examMapSection.style.display = 'block';
+  examMapRows.innerHTML = '';
+  for (var i = 0; i < months.length; i++) {
+    (function(m, idx) {
+      var div = document.createElement('div');
+      div.style.cssText = 'display:flex;gap:6px;align-items:center';
+      div.innerHTML = '<span style="font-size:12px;font-weight:500;width:50px">' + m + '\u6708</span>' +
+        '<span style="color:var(--text2);font-size:11px">\u2192 \u7b2c</span>' +
+        '<input type="number" class="order-input" value="' + (idx + 1) + '" min="1" max="20" style="width:44px;text-align:center;padding:2px 4px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;outline:none">' +
+        '<span style="color:var(--text2);font-size:11px">\u6b21\u6708\u8003</span>';
+      examMapRows.appendChild(div);
+    })(months[i], i);
+  }
+}
+
+function getExamMap() {
+  var map = null;
+  var rows = examMapRows.querySelectorAll('div');
+  for (var i = 0; i < rows.length; i++) {
+    var label = rows[i].querySelector('span:first-child');
+    var input = rows[i].querySelector('.order-input');
+    if (!label || !input) continue;
+    var month = label.textContent.replace('\u6708','');
+    var order = parseInt(input.value);
+    if (month && order > 0) {
+      if (!map) map = {};
+      map[month] = '\u7b2c' + toChineseNum(order) + '\u6b21\u6708\u8003';
+    }
+  }
+  return map;
+}
+
+function getExamOrder() {
+  var map = getExamMap();
+  if (!map) return null;
+  var vals = [];
+  for (var k in map) vals.push(map[k]);
+  return vals.length > 0 ? vals : null;
+}
+
+// ── Main Slice ──
+startBtn.addEventListener('click', startSlice);
+cancelBtn.addEventListener('click', cancelTask);
+downloadBtn.addEventListener('click', downloadResult);
+clearFilesBtn.addEventListener('click', clearFiles);
+
+async function startSlice() {
+  if (isRunning || selectedFiles.length === 0) return;
+  isRunning = true;
+  startBtn.disabled = true;
+  cancelBtn.style.display = 'block';
+  resultArea.style.display = 'none';
+  logArea.innerHTML = '';
+  updateStep(3);
+
+  var grade = gradeInput.value.trim() || '\u8bd5\u5377';
+  var schoolMap = buildSchoolMap();
+  var examMap = getExamMap();
+  var examOrder = getExamOrder();
+
+  addLog('info', '\u5f00\u59cb\u5207\u7247 (' + selectedFiles.length + ' \u4e2a\u6587\u4ef6)');
+  showProgress('\u23f3 \u4e0a\u4f20\u4e2d...', 10, '\u6b63\u5728\u4e0a\u4f20 ' + selectedFiles.length + ' \u4e2a\u6587\u4ef6');
+
+  var controller = new AbortController();
+  currentAbortController = controller;
+  var taskCancelled = false;
+
+  try {
+    var formData = new FormData();
+    for (var i = 0; i < selectedFiles.length; i++) formData.append('files', selectedFiles[i]);
+    formData.append('grade_info', grade);
+    formData.append('scheme', JSON.stringify({
+      name: '\u9ed8\u8ba4\u65b9\u6848',
+      reading: { font: '\u6977\u4f53', size: '\u4e94\u53f7', color: '\u9ed1\u8272', indent: true },
+      question: { font: '\u5b8b\u4f53', size: '\u4e94\u53f7', color: '\u9ed1\u8272' },
+      answer: { font: '\u5b8b\u4f53', size: '\u4e94\u53f7', color: '\u7ea2\u8272', bold: true },
+    }));
+
+    // XHR for upload progress
+    await new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', apiUrl('/api/slice'));
+      xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+          var pct = Math.round(10 + (e.loaded / e.total) * 20);
+          showProgress('\u23f3 \u4e0a\u4f20\u4e2d...', pct, '\u5df2\u4e0a\u4f20 ' + (e.loaded / 1024 / 1024).toFixed(1) + 'MB / ' + (e.total / 1024 / 1024).toFixed(1) + 'MB');
+        }
+      };
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr);
+        else reject(new Error('HTTP ' + xhr.status + ': ' + xhr.statusText));
+      };
+      xhr.onerror = function() { reject(new Error('\u7f51\u7edc\u9519\u8bef')); };
+      xhr.onabort = function() { reject(new DOMException('Aborted', 'AbortError')); };
+      controller.signal.addEventListener('abort', function() { xhr.abort(); taskCancelled = true; });
+      xhr.send(formData);
+    }).then(function(xhr) {
+      showProgress('\u23f3 \u5904\u7406\u4e2d...', 60, '\u540e\u7aef\u5904\u7406\u4e2d...');
+      resultBlob = xhr.response;
+      showProgress('\u2705 \u5b8c\u6210', 100, '\u5207\u7247\u5b8c\u6210');
+      addLog('success', '\u5207\u7247\u5b8c\u6210\uff0c\u5171 ' + selectedFiles.length + ' \u4e2a\u6587\u4ef6');
+      resultArea.style.display = 'block';
+      resultList.innerHTML = '<div class="result-item"><span class="path">\u200b\u200b\u5207\u7247\u7ed3\u679c.zip</span></div>';
+      updateStep(4);
+    });
+
+  } catch (err) {
+    if (err.name === 'AbortError' || taskCancelled) {
+      showProgress('\u23f9 \u5df2\u53d6\u6d88', 0, '');
+      addLog('warn', '\u5df2\u53d6\u6d88');
+    } else {
+      showProgress('\u274c \u9519\u8bef', 0, err.message);
+      addLog('error', '\u5207\u7247\u5931\u8d25: ' + err.message);
+    }
+  }
+
+  isRunning = false;
+  startBtn.disabled = selectedFiles.length === 0;
+  cancelBtn.style.display = 'none';
+  currentAbortController = null;
+}
+
+function cancelTask() {
+  if (currentAbortController) { currentAbortController.abort(); currentAbortController = null; }
+}
+
+function downloadResult() {
+  if (!resultBlob) return;
+  var url = URL.createObjectURL(resultBlob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = '\u5207\u7247\u7ed3\u679c.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  addLog('success', '\u5df2\u5f00\u59cb\u4e0b\u8f7d \u5207\u7247\u7ed3\u679c.zip');
+}
+
+// ── Init ──
+if (window.__IS_VERCEL__) {
+  addLog('warn', 'Vercel \u6a21\u5f0f | \u6587\u4ef6\u4e0a\u9650 ~4MB | \u9996\u6b21\u64cd\u4f5c\u6709\u51b7\u542f\u52a8\u5ef6\u8fdf');
+}
+addLog('info', 'XDFclier \u5c31\u7eea');
+addLog('info', 'API: /api/slice, /api/debug-scan');
+document.getElementById('selectAllBtn').textContent = '\u53d6\u6d88\u5168\u9009';
+</script>
+</body>
+</html>
