@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XDFclier — 试卷切片工具</title>
 <script>
-// EdgeOne 部署：API 指向 Vercel 后端
-window.__API_BASE__ = 'https://paurika.qzz.io';
+// EdgeOne 部署：API 同源，由 EdgeOne 规则转发到 Vercel
+window.__API_BASE__ = '';
 window.__IS_VERCEL__ = window.location.hostname.includes('vercel.app');
 function apiUrl(path) {
   var b = window.__API_BASE__ || '';
