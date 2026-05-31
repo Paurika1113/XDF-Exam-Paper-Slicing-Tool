@@ -35,7 +35,7 @@ logger = logging.getLogger("xdfclier-backend")
 # ── 配置 ──
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://localhost"
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://localhost,https://xdfepst.edgeone.dev,https://paurika.qzz.io"
 )
 origins = [o.strip() for o in ALLOWED_ORIGINS.split(",") if o.strip()]
 
